@@ -3,17 +3,79 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { 
-  Menu, X, Scissors, RefreshCw, Ruler, BadgeCheck, 
-  Instagram, Mail, Phone, MapPin, ImageOff, CheckCheck,
+  Menu, X, Scissors, Shirt, MapPin, Clock, Award, Heart, 
+  Instagram, Mail, Phone, MapPin as MapIcon, ImageOff, CheckCheck,
   ChevronRight, ArrowUpRight
 } from 'lucide-react';
 
 // --- Types ---
+type Stat = { number: string; label: string; icon: string };
 type Product = { name: string; description: string; price: string; image_url: string };
 type Feature = { title: string; description: string; icon: string };
 type Testimonial = { name: string; text: string; role: string };
 
-// --- Hooks ---
+// --- Data ---
+const brand = {
+  name: "Dessy Atelier",
+  tagline: "Elevating African Elegance",
+  description: "Dessy Atelier is a premier fashion house in Lagos, specializing in bespoke tailoring and contemporary African couture that blends traditional craftsmanship with modern silhouettes.",
+  industry: "Fashion",
+  region: "Nigeria"
+};
+
+const products: Product[] = [
+  { name: "Signature Agbada Set", description: "Hand-embroidered traditional wear re-imagined for the modern man.", price: "₦85,000", image_url: "https://picsum.photos/seed/fashion2/800/1000" },
+  { name: "Bespoke Evening Gown", description: "A masterpiece of silk and lace, tailored to your exact measurements.", price: "₦150,000", image_url: "https://picsum.photos/seed/fashion3/800/1000" },
+  { name: "The Atelier Suit", description: "Sharp, contemporary tailoring designed for high-stakes impact.", price: "₦110,000", image_url: "https://picsum.photos/seed/fashion4/800/1000" },
+  { name: "Contemporary Kaftan", description: "Effortless luxury for everyday wear, crafted from premium cotton.", price: "₦65,000", image_url: "https://picsum.photos/seed/fashion5/800/1000" }
+];
+
+const features: Feature[] = [
+  { title: "Bespoke Tailoring", description: "Every stitch is placed with precision to ensure a perfect fit for your unique silhouette.", icon: "Scissors" },
+  { title: "Premium Fabrics", description: "We source the finest materials from across the continent to deliver unmatched quality.", icon: "Shirt" },
+  { title: "Lagos Craftsmanship", description: "Rooted in the heart of Lagos, bringing urban energy to classic African designs.", icon: "MapPin" }
+];
+
+const stats: Stat[] = [
+  { number: "10+", label: "Years in Fashion", icon: "Clock" },
+  { number: "500+", label: "Custom Pieces", icon: "Award" },
+  { number: "100%", label: "Client Satisfaction", icon: "Heart" }
+];
+
+const testimonials: Testimonial[] = [
+  { name: "Tunde Ogunleye", text: "The attention to detail at Dessy Atelier is unmatched in Lagos. My suit fits like a second skin.", role: "Creative Director" },
+  { name: "Ify Okeke", text: "My wedding gown was a dream come true. The fabric quality and the fit were beyond my expectations.", role: "Entrepreneur" },
+  { name: "Adebayo Balogun", text: "Authentic African style with a modern twist. The Agbada set I ordered turned heads all night.", role: "Public Figure" }
+];
+
+const IMAGES = {
+  hero: "https://picsum.photos/seed/fashion1/1200/800",
+  about: "https://picsum.photos/seed/fashion6/800/1000"
+};
+
+// --- Components ---
+
+function SafeImage({ src, alt, fill, width, height, className, priority }: {
+  src: string; alt: string; fill?: boolean; width?: number; height?: number;
+  className?: string; priority?: boolean;
+}) {
+  const [error, setError] = useState(false);
+  if (error) {
+    return (
+      <div className={`flex items-center justify-center bg-[#222] ${className}`}>
+        <ImageOff size={24} className="text-white/20" />
+      </div>
+    );
+  }
+  return (
+    <Image src={src} alt={alt} fill={fill}
+      width={!fill ? (width ?? 800) : undefined}
+      height={!fill ? (height ?? 600) : undefined}
+      className={className} priority={priority}
+      onError={() => setError(true)} />
+  );
+}
+
 const useScrollReveal = (threshold = 0.15) => {
   const ref = useRef<HTMLElement>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -24,298 +86,266 @@ const useScrollReveal = (threshold = 0.15) => {
     );
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
-  }, []);
+  }, [threshold]);
   return { ref, isVisible };
 };
 
-// --- Components ---
-function SafeImage({ src, alt, fill, width, height, className, priority }: any) {
-  const [error, setError] = useState(false);
-  if (error) {
-    return (
-      <div className={`flex items-center justify-center bg-zinc-900 ${className}`}>
-        <ImageOff size={24} className="text-white/10" />
-      </div>
-    );
+const IconComponent = ({ name, size = 20, className = "" }: { name: string; size?: number; className?: string }) => {
+  switch (name) {
+    case 'Scissors': return <Scissors size={size} className={className} />;
+    case 'Shirt': return <Shirt size={size} className={className} />;
+    case 'MapPin': return <MapPin size={size} className={className} />;
+    case 'Clock': return <Clock size={size} className={className} />;
+    case 'Award': return <Award size={size} className={className} />;
+    case 'Heart': return <Heart size={size} className={className} />;
+    default: return <Shirt size={size} className={className} />;
   }
-  return (
-    <Image 
-      src={src} alt={alt} fill={fill} width={width} height={height} 
-      className={className} priority={priority} onError={() => setError(true)} 
-    />
-  );
-}
+};
 
-const Nav = () => {
-  const [isOpen, setIsOpen] = useState(false);
+export default function Page() {
+  const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  
+  // Form State
+  const [form, setForm] = useState({ name: '', email: '', phone: '', message: '' });
+  const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    const onScroll = () => setScrolled(window.scrollY > 60);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setTimeout(() => { setLoading(false); setSent(true); }, 1500);
+  };
+
+  // Section Refs
+  const heroReveal = useScrollReveal(0.1);
+  const featuresReveal = useScrollReveal(0.2);
+  const productsReveal = useScrollReveal(0.1);
+  const aboutReveal = useScrollReveal(0.2);
+  const testimonialReveal = useScrollReveal(0.1);
+  const contactReveal = useScrollReveal(0.2);
+
   return (
-    <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-      scrolled ? 'bg-primary/95 backdrop-blur-md py-4 shadow-xl' : 'bg-transparent py-6'
-    }`}>
-      <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
-        <a href="#home" className="text-2xl font-heading font-black tracking-tighter flex items-center gap-2">
-          <div className="bg-accent text-black px-1.5 py-0.5 text-xl">D</div>
-          <span>DESSY ATELIER</span>
-        </a>
-
-        {/* Desktop Links */}
-        <div className="hidden md:flex items-center gap-10">
-          {['Collection', 'About', 'Contact'].map((item) => (
-            <a key={item} href={`#${item.toLowerCase()}`} className="text-sm font-semibold tracking-widest uppercase hover:text-accent transition-colors">
-              {item}
-            </a>
-          ))}
-          <a href="#contact" className="bg-accent text-black px-6 py-2.5 rounded-full font-bold text-sm hover:scale-105 transition-transform">
-            Secure the Bag
+    <main className="relative">
+      {/* Navigation */}
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 px-6 py-4 
+        ${scrolled ? 'bg-primary/95 backdrop-blur-xl border-b border-white/5 py-3' : 'bg-transparent'}`}>
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <a href="#home" className="flex items-center gap-2 group">
+            <div className="w-10 h-10 bg-secondary flex items-center justify-center font-heading text-xl font-black text-primary">
+              D
+            </div>
+            <span className="font-heading text-xl font-bold tracking-tighter text-accent uppercase">
+              Dessy<span className="text-secondary ml-1">Atelier</span>
+            </span>
           </a>
-        </div>
+          
+          <div className="hidden md:flex items-center gap-10">
+            {['Collection', 'Atelier', 'Story', 'Contact'].map((item) => (
+              <a key={item} href={`#${item.toLowerCase()}`} className="text-sm font-medium tracking-widest text-accent/70 hover:text-secondary transition-colors uppercase">
+                {item}
+              </a>
+            ))}
+            <a href="#contact" className="bg-secondary text-primary px-6 py-2.5 font-bold text-sm tracking-widest uppercase hover:brightness-110 transition-all">
+              Secure Look
+            </a>
+          </div>
 
-        {/* Mobile Toggle */}
-        <button className="md:hidden text-white" onClick={() => setIsOpen(true)}>
-          <Menu size={28} />
-        </button>
-      </div>
+          <button className="md:hidden text-accent" onClick={() => setMenuOpen(true)}>
+            <Menu size={28} />
+          </button>
+        </div>
+      </nav>
 
       {/* Mobile Sidebar */}
-      <div className={`fixed inset-0 z-50 transition-transform duration-500 ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-        <div className="absolute inset-0 bg-black/60" onClick={() => setIsOpen(false)} />
+      <div className={`fixed inset-0 z-[60] transition-transform duration-500 transform ${menuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        <div className="absolute inset-0 bg-black/60" onClick={() => setMenuOpen(false)} />
         <div className="absolute right-0 top-0 h-full w-[80%] max-w-sm bg-primary border-l border-white/10 p-10 flex flex-col">
-          <button className="self-end mb-12 text-white/50 hover:text-white" onClick={() => setIsOpen(false)}>
+          <button className="self-end text-accent mb-12" onClick={() => setMenuOpen(false)}>
             <X size={32} />
           </button>
           <div className="flex flex-col gap-8">
-            {['Collection', 'About', 'Contact'].map((item) => (
-              <a key={item} href={`#${item.toLowerCase()}`} onClick={() => setIsOpen(false)} className="text-3xl font-heading font-bold hover:text-accent transition-colors">
+            {['Collection', 'Atelier', 'Story', 'Contact'].map((item) => (
+              <a key={item} href={`#${item.toLowerCase()}`} onClick={() => setMenuOpen(false)} className="text-3xl font-heading font-bold text-accent">
                 {item}
               </a>
             ))}
           </div>
-          <div className="mt-auto border-t border-white/10 pt-10">
-            <p className="text-white/40 text-xs uppercase tracking-widest mb-4">Lagos Office</p>
-            <p className="text-white/60 text-sm">Mainland / Island, Lagos, Nigeria</p>
+          <div className="mt-auto border-t border-white/10 pt-8">
+            <p className="text-secondary font-bold uppercase tracking-widest text-xs mb-4">Visit Us</p>
+            <p className="text-accent/50 text-sm leading-relaxed">Lagos, Nigeria</p>
           </div>
         </div>
       </div>
-    </nav>
-  );
-};
 
-// --- Page Content ---
-const BRAND = {
-  name: "Dessy Atelier",
-  tagline: "FUTURE FASHION, NIGERIAN SOUL",
-  description: "Uncompromising quality. Unmistakable style. Designing the next wave of luxury apparel from the heart of West Africa.",
-  industry: "fashion"
-};
-
-const IMAGES = {
-  hero: "https://images.unsplash.com/photo-1549298916-b41d501d3772?q=80&w=2012&auto=format&fit=crop",
-  products: [
-    "https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?q=80&w=1974&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1539109132381-31a1b972f0a0?q=80&w=1974&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1445205170230-053b83016050?q=80&w=2071&auto=format&fit=crop"
-  ]
-};
-
-const PRODUCTS: Product[] = [
-  { name: "The Agbada Reimagined", description: "A contemporary take on the classic flowing garment, tailored in deep indigo silk.", price: "₦285,000", image_url: IMAGES.products[0] },
-  { name: "Draped Mesh Maxi", description: "Evening piece featuring structured shoulders and fluid asymmetrical draping.", price: "₦145,500", image_url: IMAGES.products[1] },
-  { name: "Structured Day Blazer", description: "Sharp oversized blazer cut from locally sourced Ankara fabric.", price: "₦98,000", image_url: IMAGES.products[2] },
-  { name: "Adire Embellished Top", description: "Fitted Adire crop top featuring intricate pearl and sequin detailing.", price: "₦62,500", image_url: IMAGES.products[3] },
-];
-
-const FEATURES: Feature[] = [
-  { title: "Curated Drops", description: "Limited edition releases that capture the current cultural moment in Lagos.", icon: "Scissors" },
-  { title: "Easy Returns", description: "Hassle-free process for tailoring adjustments or exchanges on ready-to-wear.", icon: "RefreshCw" },
-  { title: "Exclusive Members", description: "VIP access to pre-release fabrics and private styling consultations.", icon: "BadgeCheck" },
-  { title: "Bespoke Tailoring", description: "Hand-fitted garments crafted precisely to your unique measurements.", icon: "Ruler" },
-];
-
-const TESTIMONIALS: Testimonial[] = [
-  { name: "Tosin M.", text: "The fit was immaculate. It felt custom-made from the moment I stepped out. True Lagos luxury.", role: "Creative Director" },
-  { name: "Aisha K.", text: "I needed a showstopper piece, and Dessy delivered. The detailing on the Adire top is insane.", role: "Entrepreneur" },
-  { name: "Femi O.", text: "The materials used are top-tier. This isn't just clothing; it's an investment.", role: "Art Collector" },
-];
-
-export default function Page() {
-  const { ref: heroRef, isVisible: heroVisible } = useScrollReveal();
-  const { ref: productsRef, isVisible: productsVisible } = useScrollReveal();
-  const { ref: featuresRef, isVisible: featuresVisible } = useScrollReveal();
-  const { ref: testimonialsRef, isVisible: testimonialsVisible } = useScrollReveal();
-  const { ref: contactRef, isVisible: contactVisible } = useScrollReveal();
-
-  const [form, setForm] = useState({ name: '', email: '', message: '' });
-  const [sent, setSent] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  const handleIcon = (name: string) => {
-    const props = { size: 28, className: "text-accent" };
-    switch(name) {
-      case 'Scissors': return <Scissors {...props} />;
-      case 'RefreshCw': return <RefreshCw {...props} />;
-      case 'BadgeCheck': return <BadgeCheck {...props} />;
-      case 'Ruler': return <Ruler {...props} />;
-      default: return <ChevronRight {...props} />;
-    }
-  };
-
-  return (
-    <main className="relative">
-      <Nav />
-
-      {/* Hero: HR-A Pattern */}
-      <section id="home" ref={heroRef} className="min-h-screen relative flex items-center justify-center bg-gradient-to-br from-primary via-primary/90 to-accent/10 px-6 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-[32rem] h-[32rem] bg-accent/8 rounded-full blur-[140px] pointer-events-none animate-float" />
-        <div className="absolute bottom-1/4 right-1/3 w-64 h-64 bg-accent/5 rounded-full blur-[100px] pointer-events-none" />
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/pinstriped-suit.png')] opacity-[0.04] pointer-events-none" />
+      {/* Hero Section (HR-A) */}
+      <section id="home" ref={heroReveal.ref} className="min-h-screen relative flex items-center justify-center bg-primary px-6 overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-[32rem] h-[32rem] bg-secondary/10 rounded-full blur-[120px] pointer-events-none animate-float" />
+        <div className="absolute bottom-1/4 right-1/3 w-64 h-64 bg-secondary/5 rounded-full blur-[80px] pointer-events-none" />
         
-        <div className={`relative z-10 text-center max-w-5xl transition-all duration-1000 ${heroVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}>
-          <h1 className="font-heading text-6xl md:text-9xl font-black text-white leading-[0.9] tracking-tighter">
-            {BRAND.tagline}
+        <div className={`relative z-10 text-center max-w-5xl transition-all duration-1000 ${heroReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}>
+          <h1 className="font-heading text-6xl md:text-[8rem] font-black text-accent leading-[0.85] tracking-tight uppercase">
+            Couture <br /> <span className="text-secondary">Crafted</span>
           </h1>
-          <p className="text-white/50 mt-10 text-xl md:text-2xl max-w-2xl mx-auto leading-relaxed">
-            {BRAND.description}
+          <p className="text-accent/50 mt-10 text-xl md:text-2xl max-w-2xl mx-auto leading-relaxed font-light">
+            {brand.description}
           </p>
-          <div className="flex flex-col sm:flex-row gap-5 justify-center mt-12">
-            <a href="#collection" className="bg-accent text-black px-12 py-5 font-black text-lg hover:brightness-110 hover:scale-105 transition-all duration-300 rounded-full">
-              Secure the Bag
+          <div className="flex flex-col sm:flex-row gap-6 justify-center mt-12">
+            <a href="#contact" className="bg-secondary text-primary px-12 py-5 font-black text-base uppercase tracking-widest hover:scale-105 transition-all duration-300 shadow-2xl">
+              Secure the Look
             </a>
-            <a href="#about" className="border border-white/20 text-white px-12 py-5 font-bold text-lg hover:bg-white/10 transition-all duration-300 rounded-full">
-              The Process
+            <a href="#collection" className="border border-accent/20 text-accent px-12 py-5 font-medium text-base uppercase tracking-widest hover:bg-white/5 transition-all duration-300">
+              Explore Collection
             </a>
+          </div>
+        </div>
+        
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+          <span className="text-[10px] uppercase tracking-[0.5em] text-accent/30">Scroll Down</span>
+          <div className="w-px h-12 bg-gradient-to-b from-secondary to-transparent" />
+        </div>
+      </section>
+
+      {/* Features Section (F-BENTO) */}
+      <section id="atelier" ref={featuresReveal.ref} className="py-28 px-6 bg-primary">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
+            <div>
+              <h2 className="font-heading text-5xl font-black text-accent uppercase leading-none">The Atelier <br /> <span className="text-secondary/50">Standard</span></h2>
+            </div>
+            <p className="text-accent/40 max-w-xs text-lg">Uncompromising quality in every stitch of Nigerian excellence.</p>
+          </div>
+
+          <div className={`grid grid-cols-1 md:grid-cols-3 gap-6 transition-all duration-1000 ${featuresReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}>
+            <div className="md:col-span-2 bg-secondary/10 rounded-3xl p-10 border border-secondary/20 hover:border-secondary/50 transition-all duration-500 group flex flex-col justify-between min-h-[300px]">
+              <div className="w-16 h-16 rounded-2xl bg-secondary/20 flex items-center justify-center text-secondary group-hover:scale-110 transition-transform">
+                <IconComponent name={features[0].icon} size={32} />
+              </div>
+              <div>
+                <h3 className="font-heading text-4xl font-black text-accent uppercase mb-4">{features[0].title}</h3>
+                <p className="text-accent/60 text-lg leading-relaxed max-w-xl">{features[0].description}</p>
+              </div>
+            </div>
+            
+            {features.slice(1).map((f, i) => (
+              <div key={i} className="bg-white/5 rounded-3xl p-10 border border-white/10 hover:bg-white/10 transition-all duration-300 flex flex-col justify-between min-h-[300px]">
+                <div className="w-14 h-14 rounded-xl bg-white/5 flex items-center justify-center text-secondary">
+                  <IconComponent name={f.icon} size={28} />
+                </div>
+                <div>
+                  <h3 className="font-heading text-2xl font-bold text-accent uppercase mb-3">{f.title}</h3>
+                  <p className="text-accent/45 leading-relaxed">{f.description}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Divider: D-GRID (Funky Street Luxe) */}
-      <div className="py-12 border-y border-white/10 bg-black/20">
-        <div className="max-w-7xl mx-auto flex flex-wrap justify-center gap-x-12 gap-y-6">
-          {['Lagos Made', 'Quality wey go loud', 'Global Edge', 'Modern Roots', 'Bespoke'].map((word, i) => (
-            <div key={i} className="flex items-center gap-3 text-white/40 text-xs font-bold tracking-[0.3em] uppercase">
-              <div className="w-1.5 h-1.5 rounded-full bg-accent" />
-              {word}
-            </div>
-          ))}
-        </div>
+      {/* Divider (D-QUOTE) */}
+      <div className="py-24 px-8 text-center bg-secondary relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,black/10,transparent_70%)]" />
+        <p className="relative font-heading text-4xl md:text-6xl font-black text-primary max-w-4xl mx-auto leading-tight uppercase">
+          &ldquo;{brand.tagline}&rdquo;
+        </p>
+        <p className="relative text-primary/40 mt-8 text-xs tracking-[0.5em] font-black uppercase">Dessy Atelier — Lagos Nigeria</p>
       </div>
 
-      {/* Products: P-ASYMMETRIC Staggered Masonry */}
-      <section id="collection" ref={productsRef} className="py-32 px-6 bg-primary">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row items-end justify-between mb-20 gap-6">
-            <div className={`transition-all duration-700 ${productsVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'}`}>
-              <h2 className="font-heading text-6xl md:text-7xl font-black text-white mb-4">THE COLLECTION</h2>
-              <p className="text-white/40 text-lg uppercase tracking-widest">Selected silhouetts for the modern icon</p>
-            </div>
+      {/* Products Section (P-STAGGER) */}
+      <section id="collection" ref={productsReveal.ref} className="py-28 px-6 bg-primary overflow-hidden">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-24">
+            <h2 className="font-heading text-6xl font-black text-accent uppercase leading-none mb-4">The <span className="text-secondary">Collection</span></h2>
+            <div className="w-24 h-1 bg-secondary mx-auto mt-6" />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-            {/* Main Featured */}
-            <div className={`md:col-span-7 group relative rounded-3xl overflow-hidden h-[650px] transition-all duration-1000 delay-100 ${productsVisible ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}>
-              <SafeImage src={PRODUCTS[0].image_url} alt={PRODUCTS[0].name} fill className="object-cover group-hover:scale-105 transition-transform duration-1000" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-              <div className="absolute bottom-0 left-0 p-10 w-full">
-                <h3 className="font-heading text-4xl font-black text-white mb-2">{PRODUCTS[0].name}</h3>
-                <p className="text-white/60 max-w-sm mb-6">{PRODUCTS[0].description}</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-accent text-3xl font-black">{PRODUCTS[0].price}</span>
-                  <a href="#contact" className="bg-white text-black px-8 py-3 rounded-full font-bold hover:bg-accent transition-colors flex items-center gap-2">
-                    Enquire <ArrowUpRight size={18} />
-                  </a>
+          <div className="space-y-32">
+            {products.map((p, i) => (
+              <div key={i} className={`flex flex-col ${i % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'} items-center gap-12 md:gap-24 transition-all duration-1000 ${productsReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-20'}`}
+                style={{ transitionDelay: `${i * 100}ms` }}>
+                <div className="w-full md:w-1/2 relative group">
+                  <div className="aspect-[4/5] relative rounded-[2rem] overflow-hidden shadow-2xl">
+                    <SafeImage src={p.image_url} alt={p.name} fill className="object-cover transition-transform duration-1000 group-hover:scale-110" />
+                    <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors duration-500" />
+                  </div>
+                  <div className={`absolute -bottom-8 ${i % 2 === 0 ? '-right-8' : '-left-8'} w-full h-full border-2 border-secondary/20 rounded-[2rem] -z-10 transition-transform duration-500 group-hover:translate-x-2 group-hover:translate-y-2`} />
+                </div>
+                
+                <div className={`w-full md:w-1/2 ${i % 2 === 0 ? 'text-left' : 'md:text-right'}`}>
+                  <span className="font-heading text-secondary text-2xl font-bold tracking-widest uppercase mb-4 block">
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                  <h3 className="font-heading text-4xl md:text-5xl font-black text-accent leading-tight uppercase mb-6">{p.name}</h3>
+                  <p className="text-accent/50 text-xl leading-relaxed mb-8 font-light">{p.description}</p>
+                  <div className="flex flex-col gap-6">
+                    <span className="text-4xl font-black text-secondary">{p.price}</span>
+                    <a href="#contact" className={`flex items-center gap-4 text-accent font-bold uppercase tracking-[0.2em] group ${i % 2 === 0 ? 'justify-start' : 'md:justify-end'}`}>
+                      Enquire Piece
+                      <div className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center group-hover:bg-secondary group-hover:border-secondary group-hover:text-primary transition-all duration-300">
+                        <ArrowUpRight size={20} />
+                      </div>
+                    </a>
+                  </div>
                 </div>
               </div>
-            </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-            {/* Side Grid */}
-            <div className="md:col-span-5 grid grid-rows-2 gap-6">
-              {PRODUCTS.slice(1, 3).map((p, i) => (
-                <div key={i} className={`group relative rounded-3xl overflow-hidden transition-all duration-1000 delay-[300ms] ${productsVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-                  <SafeImage src={p.image_url} alt={p.name} fill className="object-cover group-hover:scale-110 transition-transform duration-1000" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                  <div className="absolute bottom-0 left-0 p-8 w-full">
-                    <h3 className="font-heading text-2xl font-black text-white">{p.name}</h3>
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="text-accent font-bold text-xl">{p.price}</span>
-                      <a href="#contact" className="text-white/70 hover:text-white transition flex items-center gap-1 text-sm font-bold uppercase tracking-widest">
-                        Details <ChevronRight size={14} />
-                      </a>
-                    </div>
+      {/* About Section (Split with Stats) */}
+      <section id="story" ref={aboutReveal.ref} className="py-28 px-6 bg-white/5 border-y border-white/5">
+        <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-20 items-center">
+          <div className={`transition-all duration-1000 ${aboutReveal.isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-20'}`}>
+            <h2 className="font-heading text-5xl font-black text-accent uppercase leading-none mb-8">Our <span className="text-secondary">Narrative</span></h2>
+            <p className="text-accent/60 text-xl leading-relaxed mb-10">
+              Dessy Atelier was founded on the belief that fashion is the ultimate form of self-expression. Based in the vibrant landscape of Lagos, we transform cultural heritage into wearable art.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-10">
+              {stats.map((s, i) => (
+                <div key={i} className="text-center md:text-left">
+                  <div className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center text-secondary mb-4 mx-auto md:mx-0">
+                    <IconComponent name={s.icon} size={20} />
                   </div>
+                  <p className="text-3xl font-heading font-black text-accent">{s.number}</p>
+                  <p className="text-[10px] uppercase tracking-widest text-accent/40 mt-1">{s.label}</p>
                 </div>
               ))}
             </div>
-
-            {/* Bottom Row */}
-            <div className={`md:col-span-12 group relative rounded-3xl overflow-hidden h-[300px] transition-all duration-1000 delay-500 ${productsVisible ? 'opacity-100' : 'opacity-0'}`}>
-              <SafeImage src={PRODUCTS[3].image_url} alt={PRODUCTS[3].name} fill className="object-cover group-hover:scale-105 transition-transform duration-1000" />
-              <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center">
-                 <div className="text-center">
-                    <h3 className="font-heading text-3xl font-black text-white">{PRODUCTS[3].name}</h3>
-                    <p className="text-accent font-black text-2xl mt-2">{PRODUCTS[3].price}</p>
-                 </div>
-              </div>
+            <p className="mt-12 text-secondary font-bold text-sm tracking-widest uppercase italic">
+              Sharp delivery, nationwide. Lagos&apos; finest.
+            </p>
+          </div>
+          <div className={`relative transition-all duration-1000 delay-300 ${aboutReveal.isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-20'}`}>
+            <div className="aspect-[4/5] relative rounded-3xl overflow-hidden shadow-2xl">
+              <SafeImage src={IMAGES.about} alt="Atelier Interior" fill className="object-cover" />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features: F-NUMBERED Alternating Row */}
-      <section id="about" ref={featuresRef} className="py-32 px-6 bg-secondary text-primary overflow-hidden">
-        <div className="max-w-5xl mx-auto">
-          <div className="mb-20 text-center">
-            <h2 className="font-heading text-5xl md:text-6xl font-black mb-6">THE ATELIER DIFFERENCE</h2>
-            <div className="w-24 h-2 bg-accent mx-auto" />
-          </div>
-
-          <div className="space-y-0 divide-y divide-primary/10">
-            {FEATURES.map((f, i) => (
-              <div key={i} className={`py-16 flex flex-col md:flex-row items-start gap-12 transition-all duration-1000 ${featuresVisible ? 'translate-x-0 opacity-100' : (i % 2 === 0 ? '-translate-x-20' : 'translate-x-20') + ' opacity-0'}`}>
-                <span className="font-heading text-8xl font-black text-accent/20 tracking-tighter shrink-0 w-32 leading-none">
-                  0{i + 1}
-                </span>
-                <div className="flex-1">
-                  <h3 className="font-heading text-3xl font-black mb-4 uppercase tracking-tight">{f.title}</h3>
-                  <p className="text-primary/70 text-lg leading-relaxed max-w-xl">{f.description}</p>
-                </div>
-                <div className="w-20 h-20 rounded-2xl bg-primary flex items-center justify-center shrink-0 shadow-2xl">
-                  {handleIcon(f.icon)}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials: T-SLIDER Auto-scroll */}
-      <section ref={testimonialsRef} className="py-32 bg-primary overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6 mb-16 text-center">
-          <h2 className="font-heading text-5xl md:text-6xl font-black text-white">VOICES OF LUXURY</h2>
-        </div>
-        
-        <div className="w-full overflow-hidden relative">
-          <div className="flex w-[200%] gap-6 animate-slide-left hover:[animation-play-state:paused]">
-            {[...TESTIMONIALS, ...TESTIMONIALS].map((t, i) => (
-              <div key={i} className="w-[350px] md:w-[450px] shrink-0 bg-white/5 border border-white/10 rounded-[2rem] p-10 backdrop-blur-sm">
-                <div className="flex gap-1 mb-8">
-                  {[1,2,3,4,5].map(n => <div key={n} className="w-2 h-2 rounded-full bg-accent" />)}
-                </div>
-                <p className="text-white/80 leading-relaxed italic mb-10 text-xl font-medium">&ldquo;{t.text}&rdquo;</p>
-                <div className="flex items-center gap-5 border-t border-white/10 pt-8">
-                  <div className="w-14 h-14 rounded-full bg-accent flex items-center justify-center text-black font-black text-xl">
+      {/* Testimonials (T-MASONRY) */}
+      <section ref={testimonialReveal.ref} className="py-28 px-6 bg-primary">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="font-heading text-5xl font-black text-accent text-center mb-20 uppercase tracking-tighter">Voices of <span className="text-secondary">Elegance</span></h2>
+          <div className="columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6">
+            {testimonials.map((t, i) => (
+              <div key={i} className={`break-inside-avoid bg-white/5 p-10 rounded-3xl border border-white/10 hover:border-secondary/30 transition-all duration-500 group transition-all duration-700 ${testimonialReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}
+                style={{ transitionDelay: `${i * 100}ms` }}>
+                <p className="text-accent/80 text-lg leading-relaxed mb-8 italic">&ldquo;{t.text}&rdquo;</p>
+                <div className="flex items-center gap-4 pt-6 border-t border-white/10">
+                  <div className="w-12 h-12 rounded-full bg-secondary text-primary flex items-center justify-center font-black text-lg">
                     {t.name.charAt(0)}
                   </div>
                   <div>
-                    <p className="font-bold text-white text-lg">{t.name}</p>
-                    <p className="text-accent text-sm font-bold uppercase tracking-widest">{t.role}</p>
+                    <p className="font-heading font-bold text-accent text-lg">{t.name}</p>
+                    <p className="text-secondary text-xs uppercase tracking-widest font-bold">{t.role}</p>
                   </div>
                 </div>
               </div>
@@ -324,38 +354,49 @@ export default function Page() {
         </div>
       </section>
 
-      {/* Contact: C3 Pattern */}
-      <section id="contact" ref={contactRef} className="py-32 px-6 bg-secondary text-primary">
-        <div className={`max-w-3xl mx-auto text-center transition-all duration-1000 ${contactVisible ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}>
-          <p className="text-accent font-black text-sm tracking-[0.4em] uppercase mb-4">Fitting</p>
-          <h2 className="font-heading text-5xl md:text-7xl font-black mb-6">BOOK YOUR PRIVATE SESSION</h2>
-          <p className="text-primary/60 mb-16 text-xl leading-relaxed">
-            Experience the pinnacle of Nigerian craftsmanship. Let&apos;s co-create your next masterpiece.
-          </p>
-
-          <div className="text-left bg-primary p-10 md:p-14 rounded-[3rem] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.3)]">
+      {/* Contact Section (C3) */}
+      <section id="contact" ref={contactReveal.ref} className="py-28 px-6 bg-primary">
+        <div className="max-w-3xl mx-auto text-center">
+          <span className="text-secondary font-heading text-xl italic mb-4 block">Let&apos;s Create</span>
+          <h2 className="font-heading text-6xl font-black text-accent uppercase leading-none mb-6">Consult with the <br /> <span className="text-secondary">Designer</span></h2>
+          <p className="text-accent/40 mb-16 text-lg max-w-xl mx-auto">Experience bespoke luxury. Leave your details below and our lead stylist will reach out for a private consultation.</p>
+          
+          <div className={`text-left transition-all duration-1000 ${contactReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}>
             {sent ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center animate-scaleIn">
-                <div className="w-20 h-20 rounded-full bg-accent/20 flex items-center justify-center mb-8 border border-accent/30">
-                  <CheckCheck size={40} className="text-accent" />
+              <div className="flex flex-col items-center justify-center py-20 text-center animate-scaleIn bg-white/5 rounded-3xl border border-secondary/30">
+                <div className="w-20 h-20 rounded-full bg-secondary/20 flex items-center justify-center mb-8 border border-secondary/30 text-secondary">
+                  <CheckCheck size={40} />
                 </div>
-                <h3 className="font-heading text-3xl font-black text-white">CONSULTATION BOOKED</h3>
-                <p className="text-white/50 mt-4 max-w-xs mx-auto">Our atelier director will reach out to confirm your session within 24 hours.</p>
-                <button onClick={() => setSent(false)} className="mt-10 text-accent font-bold uppercase tracking-widest text-sm hover:underline">Send another request</button>
+                <h3 className="font-heading text-3xl font-black text-accent uppercase">Request Logged</h3>
+                <p className="text-accent/50 mt-4 max-w-xs text-lg">We will contact you via WhatsApp or Email within 24 hours.</p>
               </div>
             ) : (
-              <form onSubmit={(e) => { e.preventDefault(); setLoading(true); setTimeout(() => { setLoading(false); setSent(true); }, 1500); }} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid md:grid-cols-2 gap-6">
-                  <input type="text" placeholder="FULL NAME" required
-                    className="w-full bg-white/5 border-b-2 border-white/10 py-4 px-2 text-white font-bold outline-none focus:border-accent transition-all placeholder:text-white/20" />
-                  <input type="email" placeholder="EMAIL ADDRESS" required
-                    className="w-full bg-white/5 border-b-2 border-white/10 py-4 px-2 text-white font-bold outline-none focus:border-accent transition-all placeholder:text-white/20" />
+                  {(['name', 'email'] as const).map(field => (
+                    <input key={field}
+                      type={field === 'email' ? 'email' : 'text'}
+                      placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
+                      value={form[field]}
+                      onChange={e => setForm(prev => ({ ...prev, [field]: e.target.value }))}
+                      required
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-accent placeholder-white/20 outline-none focus:border-secondary transition-all text-lg" />
+                  ))}
                 </div>
-                <textarea rows={4} placeholder="TELL US ABOUT THE OCCASION" required
-                  className="w-full bg-white/5 border-b-2 border-white/10 py-4 px-2 text-white font-bold outline-none focus:border-accent transition-all placeholder:text-white/20 resize-none" />
+                <input type="text" placeholder="Phone (WhatsApp Preferred)"
+                  value={form.phone}
+                  onChange={e => setForm(prev => ({ ...prev, phone: e.target.value }))}
+                  required
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-accent placeholder-white/20 outline-none focus:border-secondary transition-all text-lg" />
+                <textarea rows={5} placeholder="Tell us about the occasion..."
+                  value={form.message}
+                  onChange={e => setForm(prev => ({ ...prev, message: e.target.value }))}
+                  required
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-accent placeholder-white/20 outline-none focus:border-secondary transition-all text-lg resize-none" />
                 <button type="submit" disabled={loading}
-                  className="w-full bg-accent text-black py-5 rounded-full font-black text-xl hover:brightness-110 transition-all active:scale-[0.98]">
-                  {loading ? 'PROCESSING...' : 'REQUEST FITTING'}
+                  className="w-full bg-secondary text-primary py-6 rounded-2xl font-black text-lg uppercase tracking-widest hover:brightness-110 transition-all duration-300 disabled:opacity-60 flex items-center justify-center gap-4">
+                  {loading ? 'Processing...' : 'Request Consultation'}
+                  {!loading && <ChevronRight size={24} />}
                 </button>
               </form>
             )}
@@ -366,52 +407,61 @@ export default function Page() {
       {/* Footer */}
       <footer className="bg-primary pt-24 pb-12 px-6 border-t border-white/5">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-16 mb-20">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-16 mb-24">
             <div className="md:col-span-2">
-              <a href="#home" className="text-4xl font-heading font-black tracking-tighter flex items-center gap-3 mb-8">
-                <div className="bg-accent text-black px-2 py-1 text-2xl">D</div>
-                <span>DESSY ATELIER</span>
-              </a>
-              <p className="text-white/40 max-w-sm text-lg leading-relaxed">
-                Elevating the narrative of West African fashion through uncompromising craftsmanship and global silhouettes.
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-12 h-12 bg-secondary flex items-center justify-center font-heading text-2xl font-black text-primary">D</div>
+                <span className="font-heading text-2xl font-bold tracking-tighter text-accent uppercase">Dessy<span className="text-secondary ml-1">Atelier</span></span>
+              </div>
+              <p className="text-accent/40 text-lg leading-relaxed max-w-sm mb-10">
+                Crafting the future of African couture from the heart of Lagos. Redefining elegance for the global stage.
               </p>
-              <div className="flex gap-6 mt-10">
-                <a href="https://instagram.com/dessy_atelier" className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center hover:bg-accent hover:text-black transition-all">
+              <div className="flex items-center gap-6">
+                <a href="https://instagram.com/dessy_atelier" className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center text-accent/50 hover:bg-secondary hover:text-primary hover:border-secondary transition-all">
                   <Instagram size={20} />
                 </a>
-                <a href="#" className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center hover:bg-accent hover:text-black transition-all">
-                  <Mail size={20} />
+                <a href="#" className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center text-accent/50 hover:bg-secondary hover:text-primary hover:border-secondary transition-all">
+                  <Phone size={20} />
                 </a>
               </div>
             </div>
-            
+
             <div>
-              <h4 className="font-bold uppercase tracking-[0.2em] mb-8 text-accent text-sm">Navigation</h4>
+              <h4 className="text-secondary font-bold uppercase tracking-[0.2em] text-sm mb-8">Explore</h4>
               <ul className="space-y-4">
-                {['Collection', 'About', 'Contact', 'Terms'].map(link => (
-                  <li key={link}><a href={`#${link.toLowerCase()}`} className="text-white/60 hover:text-white transition-colors">{link}</a></li>
+                {['Home', 'Collection', 'Atelier', 'Story', 'Contact'].map(link => (
+                  <li key={link}>
+                    <a href={`#${link.toLowerCase()}`} className="text-accent/40 hover:text-secondary transition-colors text-base font-medium">
+                      {link}
+                    </a>
+                  </li>
                 ))}
               </ul>
             </div>
 
             <div>
-              <h4 className="font-bold uppercase tracking-[0.2em] mb-8 text-accent text-sm">Find Us</h4>
-              <div className="space-y-4 text-white/60">
-                <div className="flex items-start gap-3">
-                  <MapPin size={18} className="shrink-0 text-accent" />
-                  <span>Victoria Island,<br/>Lagos, Nigeria</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Phone size={18} className="text-accent" />
-                  <span>+234 800 DESSY ATELIER</span>
-                </div>
-              </div>
+              <h4 className="text-secondary font-bold uppercase tracking-[0.2em] text-sm mb-8">Visit</h4>
+              <ul className="space-y-6">
+                <li className="flex gap-4">
+                  <MapIcon size={20} className="text-secondary shrink-0" />
+                  <span className="text-accent/40 text-sm leading-relaxed">Lagos, Nigeria</span>
+                </li>
+                <li className="flex gap-4">
+                  <Mail size={20} className="text-secondary shrink-0" />
+                  <span className="text-accent/40 text-sm">hello@dessyatelier.com</span>
+                </li>
+              </ul>
             </div>
           </div>
-          
-          <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 text-white/20 text-xs font-bold tracking-widest uppercase">
-            <p>© {new Date().getFullYear()} DESSY ATELIER. ALL RIGHTS RESERVED.</p>
-            <p>LAGOS — LONDON — NEW YORK</p>
+
+          <div className="flex flex-col md:flex-row justify-between items-center pt-12 border-t border-white/5 gap-6">
+            <p className="text-accent/20 text-xs font-medium tracking-widest uppercase">
+              © {new Date().getFullYear()} Dessy Atelier. All rights reserved.
+            </p>
+            <div className="flex gap-8 text-accent/20 text-xs font-medium tracking-widest uppercase">
+              <a href="#" className="hover:text-secondary transition-colors">Privacy</a>
+              <a href="#" className="hover:text-secondary transition-colors">Terms</a>
+            </div>
           </div>
         </div>
       </footer>

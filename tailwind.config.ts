@@ -1,25 +1,20 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  content: [
-    "./app/**/*.{js,ts,jsx,tsx,mdx}",
-  ],
+  content: ["./app/**/*.{js,ts,jsx,tsx,mdx}"],
   theme: {
     extend: {
-      fontFamily: {
-        heading: ['var(--font-heading)', 'serif'],
-        sans: ['var(--font-body)', 'sans-serif'],
-      },
       colors: {
-        primary: "#1a1a1a",
-        secondary: "#f5f5dc",
-        accent: "#ff9900",
+        primary: "var(--primary)",
+        secondary: "var(--secondary)",
+        accent: "var(--accent)"
       },
-      animation: {
-        'slide-left': 'slide-left 40s linear infinite',
-      },
-    },
+      fontFamily: {
+        heading: ["var(--font-heading)"],
+        sans: ["var(--font-body)"]
+      }
+    }
   },
-  plugins: [],
+  plugins: []
 };
 export default config;
